@@ -1,39 +1,61 @@
 package com.shiva.jobscheduler.service;
 
+import com.shiva.jobscheduler.model.Buffer;
 import com.shiva.jobscheduler.model.Job;
 import com.shiva.jobscheduler.repository.JobRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.PriorityQueue;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.Objects;
 
+@Slf4j
 @Service
 public class SchedulerService {
 
     private final JobRepository jobRepository;
-    private final BufferManager bufferManager;
     private final JobExecutor jobExecutor;
-    private PriorityQueue<Job> queue;
+    private final Buffer buffer;
+    private final BufferManager bufferManager;
+    private Thread schedulerThread;
+    private long wait;
 
-    public SchedulerService(JobRepository jobRepository, BufferManager bufferManager, JobExecutor jobExecutor) {
+    public SchedulerService(JobRepository jobRepository , JobExecutor jobExecutor, Buffer buffer, BufferManager bufferManager) {
         this.jobRepository = jobRepository;
-        this.bufferManager = bufferManager;
         this.jobExecutor = jobExecutor;
+        this.buffer = buffer;
+        this.bufferManager = bufferManager;
     }
 
     public void schedule(){
-        Thread t1 = new Thread(()->{
-            while(true){
-                queue = bufferManager.loadJobs();
-                while(!queue.isEmpty()){
-                    jobExecutor.execute(queue.poll());
-                }
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            }
+         schedulerThread = new Thread(()->{
+             while(true){
+                 Job job = new Job();
+                 synchronized (bufferManager.getBufferLock()){
+                     while(!buffer.getQueue().isEmpty()){
+                         job = bufferManager.getJobWithNextExecutionTime();
+                         wait = Duration.between(LocalDateTime.now(),job.getScheduledAt())
+                                 .toMillis();
+                         if(wait > 0){
+                             try {
+                                 bufferManager.getBufferLock().wait(wait);
+                                 continue;
+                             } catch (InterruptedException e) {
+                                 log.error("Thread started {}",e);
+                             }
+                         }
+                         job =  buffer.getQueue().poll();
+                     }
+                     try {
+                         bufferManager.getBufferLock().wait();
+                     } catch (InterruptedException e) {
+                         log.error("Thread interupted {}",e);
+                     }
+                     jobExecutor.execute(job);
+                 }
+             }
         });
-        t1.start();
+        schedulerThread.start();
     }
 }

@@ -17,6 +17,12 @@ import java.util.UUID;
 @NoArgsConstructor
 @Getter
 @Setter
+@Table(
+        indexes = {
+                @Index(name = "idx_time_status_deleted" ,
+                        columnList = "scheduledAt,status,isDeleted")
+        }
+)
 public class Job implements Comparable<Job>{
 
     @Id

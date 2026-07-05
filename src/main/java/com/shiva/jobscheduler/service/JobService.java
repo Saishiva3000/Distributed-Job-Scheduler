@@ -20,11 +20,15 @@ public class JobService {
 
     private final JobRepository jobRepository;
     private final ModelMapper mapper;
+    private final BufferManager bufferManager;
+    private final SchedulerService schedulerService;
 
     @Autowired
-    public JobService(JobRepository jobRepository, ModelMapper mapper) {
+    public JobService(JobRepository jobRepository, ModelMapper mapper, BufferManager bufferManager, SchedulerService schedulerService) {
         this.jobRepository = jobRepository;
         this.mapper = mapper;
+        this.bufferManager = bufferManager;
+        this.schedulerService = schedulerService;
     }
 
     @Transactional
@@ -33,7 +37,12 @@ public class JobService {
         System.out.println(job.getJobName());
         job.setStatus(Job.JobStatus.PENDING);
         job.setDeleted(false);
-        return mapper.map(jobRepository.save(job), ResponseDto.class);
+        job = jobRepository.save(job);
+        synchronized (bufferManager.getBufferLock()){
+            bufferManager.addJobs(job);
+            bufferManager.getBufferLock().notifyAll();
+        }
+        return mapper.map(job, ResponseDto.class);
     }
 
     public ResponseDto getJob(UUID id){
@@ -44,14 +53,16 @@ public class JobService {
 
     @Transactional
     public void delete(UUID id){
-        Job job = jobRepository.getReferenceById(id);
+        Job job = jobRepository.findById(id)
+                .orElseThrow(()-> new JobNotFoundException("could not find"));
         job.setDeleted(true);
         job.setDeletedAt(LocalDateTime.now());
     }
 
     @Transactional
-    public void updateStatus(UUID jobId){
-        Job job = jobRepository.getReferenceById(jobId);
-        job.setStatus(Job.JobStatus.RUNNING);
+    public void updateStatus(UUID jobId, Job.JobStatus status){
+        Job job = jobRepository.findByIdAndIsDeletedFalse(jobId)
+                .orElseThrow(()-> new JobNotFoundException("not FOUND"));
+        job.setStatus(status);
     }
 }

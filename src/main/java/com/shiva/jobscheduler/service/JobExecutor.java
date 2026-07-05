@@ -13,7 +13,12 @@ public class JobExecutor {
     }
 
     public void execute(Job job){
-        jobService.updateStatus(job.getId());
+        jobService.updateStatus(job.getId(), Job.JobStatus.RUNNING);
         System.out.println("executing" + job.getJobName());
+        jobService.updateStatus(job.getId(), Job.JobStatus.COMPLETED);
+    }
+
+    public void JobFailed(Job job){
+        jobService.updateStatus(job.getId(), Job.JobStatus.FAILED);
     }
 }
