@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: discovery-service
+
+  config:
+    import: "optional:configserver:http://localhost:8071"
+
+
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    fetch-registry: false
+    register-with-eureka: false
+
+management:
+  endpoints:
+    web.exposure.include: health,info
+
+  health.probes.enabled: true
+
+server:
+  port: 8070

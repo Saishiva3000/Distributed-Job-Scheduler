@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: api-gateway
+
+  config:
+    import: "optional:configserver:http://localhost:8071"
+
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    fetch-registry: true
+    register-with-eureka: true
+    search-url:
+      defaultZone: "http://localhost:8070/eureka"
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web.exposure.include: health,info
+  health.probes.enabled: true

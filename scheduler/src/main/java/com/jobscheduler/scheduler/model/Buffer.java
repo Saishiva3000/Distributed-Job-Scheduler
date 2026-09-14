@@ -14,6 +14,6 @@ import java.util.PriorityQueue;
 @Component
 public class Buffer {
 
-    private PriorityQueue<JobProvision> queue = new PriorityQueue<>();
+    private PriorityQueue<JobHash> queue = new PriorityQueue<>();
 
 }
